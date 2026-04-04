@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Watchr design tokens — derived from MkDocs Material slate/green/indigo.
+ * Dark mode is default; light mode overrides via .light class on <html>.
+ */
+
+:root {
+  /* Dark mode (default) */
+  --bg-primary: #1e2129;
+  --bg-secondary: #252830;
+  --bg-surface: #2c2f38;
+  --text-primary: #e2e4e9;
+  --text-secondary: #8b8fa3;
+  --accent-primary: #4caf50;
+  --accent-secondary: #536dfe;
+  --border: #33363f;
+}
+
+html.light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-surface: #e8e8e8;
+  --text-primary: #212121;
+  --text-secondary: #757575;
+  --accent-primary: #2e7d32;
+  --accent-secondary: #3d5afe;
+  --border: #e0e0e0;
+}
+
+body {
+  margin: 0;
+  font-family: "Roboto", system-ui, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling for dark mode */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}

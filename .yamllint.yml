@@ -1,0 +1,37 @@
+# yamllint configuration
+# https://yamllint.readthedocs.io
+
+extends: default
+
+rules:
+  # Allow long lines for readability
+  line-length:
+    max: 200
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+
+  # Require consistent indentation
+  indentation:
+    spaces: 2
+    indent-sequences: true
+
+  # Truthy values — allow common docker-compose patterns
+  truthy:
+    allowed-values: ["true", "false", "yes", "no"]
+    check-keys: false
+
+  # Allow document start without ---
+  document-start: disable
+
+  # Comments
+  comments:
+    require-starting-space: true
+    min-spaces-from-content: 1
+
+  # Braces and brackets
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 0
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 0

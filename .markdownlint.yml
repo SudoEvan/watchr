@@ -1,0 +1,26 @@
+# Markdownlint configuration
+# https://github.com/DavidAnson/markdownlint
+
+default: true
+
+# Allow long lines (common in tables and links)
+MD013: false
+
+# Allow bare URLs in context where they're descriptive
+MD034: false
+
+# Allow multiple headings with same content (different sections)
+MD024:
+  siblings_only: true
+
+# Allow inline HTML (needed for some formatting)
+MD033: false
+
+# Fenced code blocks must have a language specified
+MD040: true
+
+# Allow non-blank lines before/after lists in certain contexts
+MD032: true
+
+# Table pipe alignment — disable strict alignment checking
+MD060: false

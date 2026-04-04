@@ -1,0 +1,12 @@
+# Hadolint — Dockerfile linter
+# https://github.com/hadolint/hadolint
+
+ignored:
+  # Allow using pip install without --no-cache-dir (we clear in same layer)
+  - DL3042
+  # Allow pip install without version pinning (we pin in requirements.txt)
+  - DL3013
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
