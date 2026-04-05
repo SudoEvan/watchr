@@ -18,8 +18,8 @@ RUN poetry install --only main --no-interaction --no-ansi
 # Copy application code
 COPY . .
 
-# Create data directory for SQLite
-RUN mkdir -p /data
+# Create data directory for SQLite (volume-mounted at /app/data)
+RUN mkdir -p /app/data
 
 EXPOSE 8000
 

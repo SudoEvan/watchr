@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     backend_cors_origins: list[str] = ["http://localhost:5173"]
 
     # Database
-    database_url: str = "sqlite+aiosqlite:///./watchr.db"
+    database_url: str = "sqlite+aiosqlite:///./data/watchr.db"
 
     # Auth / JWT
     jwt_secret_key: str = "CHANGE_ME_GENERATE_A_REAL_SECRET"
