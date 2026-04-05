@@ -93,8 +93,9 @@ jobs:
           chmod 600 ~/.ssh/id_deploy
           ssh-keyscan -p "${SSH_PORT}" "${SSH_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
 
-          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_deploy -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" bash -s -- "${DEPLOY_PATH}" <<'SCRIPT'
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_deploy -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" bash --login -s -- "${DEPLOY_PATH}" <<'SCRIPT'
           set -e
+          export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
           DEPLOY_DIR="$1"
           cd "$DEPLOY_DIR"
 
