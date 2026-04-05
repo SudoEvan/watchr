@@ -77,47 +77,54 @@ jobs:
   deploy:
     needs: [backend, frontend]
     runs-on: docker
-    container: node:20-bookworm-slim
+    container: python:3.12-slim
     steps:
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SYNOLOGY_HOST }}
-          port: ${{ secrets.SYNOLOGY_SSH_PORT }}
-          username: ${{ secrets.SYNOLOGY_USER }}
-          key: ${{ secrets.SYNOLOGY_SSH_KEY }}
-          command_timeout: 10m
-          script: |
-            set -e
-            cd ${{ secrets.DEPLOY_PATH }}
+        env:
+          SSH_KEY: ${{ secrets.SYNOLOGY_SSH_KEY }}
+          SSH_HOST: ${{ secrets.SYNOLOGY_HOST }}
+          SSH_PORT: ${{ secrets.SYNOLOGY_SSH_PORT }}
+          SSH_USER: ${{ secrets.SYNOLOGY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          apt-get update -qq && apt-get install -y -qq openssh-client >/dev/null 2>&1
+          mkdir -p ~/.ssh
+          echo "${SSH_KEY}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -p "${SSH_PORT}" "${SSH_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
 
-            echo "==> Pulling latest from main..."
-            git fetch origin main
-            git reset --hard origin/main
+          ssh -i ~/.ssh/id_deploy -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" bash -s <<SCRIPT
+          set -e
+          cd ${DEPLOY_PATH}
 
-            echo "==> Building and deploying containers..."
-            docker compose pull 2>/dev/null || true
-            docker compose build --no-cache
-            docker compose up -d --force-recreate --remove-orphans
+          echo "==> Pulling latest from main..."
+          git fetch origin main
+          git reset --hard origin/main
 
-            echo "==> Waiting for backend health check..."
-            for i in $(seq 1 30); do
-              if docker compose exec -T backend python -c \
-                "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')" \
-                2>/dev/null; then
-                echo "==> Backend healthy!"
-                break
-              fi
-              if [ "$i" -eq 30 ]; then
-                echo "==> ERROR: Backend failed health check after 30 attempts"
-                docker compose logs --tail=50 backend
-                exit 1
-              fi
-              echo "    Attempt $i/30 — waiting 5s..."
-              sleep 5
-            done
+          echo "==> Building and deploying containers..."
+          docker compose pull 2>/dev/null || true
+          docker compose build --no-cache
+          docker compose up -d --force-recreate --remove-orphans
 
-            echo "==> Cleaning up dangling images..."
-            docker image prune -f
+          echo "==> Waiting for backend health check..."
+          for i in \$(seq 1 30); do
+            if docker compose exec -T backend python -c \
+              "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')" \
+              2>/dev/null; then
+              echo "==> Backend healthy!"
+              break
+            fi
+            if [ "\$i" -eq 30 ]; then
+              echo "==> ERROR: Backend failed health check after 30 attempts"
+              docker compose logs --tail=50 backend
+              exit 1
+            fi
+            echo "    Attempt \$i/30 — waiting 5s..."
+            sleep 5
+          done
 
-            echo "==> Deploy complete!"
+          echo "==> Cleaning up dangling images..."
+          docker image prune -f
+
+          echo "==> Deploy complete!"
+          SCRIPT
