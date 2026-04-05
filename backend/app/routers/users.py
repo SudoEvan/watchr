@@ -21,12 +21,12 @@ async def search_users(
     q: str = Query(..., min_length=1, description="Username prefix to search"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[User]:
     """Search users by username prefix. Used for sharing watchlists."""
     result = await db.execute(
         select(User).where(User.username.ilike(f"{q}%")).where(User.id != current_user.id).limit(10)
     )
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 @router.patch("/me", response_model=UserResponse)
@@ -34,7 +34,7 @@ async def update_profile(
     updates: UserUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> User:
     """Update the current user's profile."""
     if updates.display_name is not None:
         current_user.display_name = updates.display_name
@@ -61,7 +61,7 @@ async def update_profile(
 async def list_currently_watching(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[CurrentlyWatchingResponse]:
     """List all titles the current user is actively watching (across all lists)."""
     # Find distinct (tmdb_id, media_type, title, poster_path) where user has an
     # open WatchRecord (start_date set, end_date NULL).
@@ -100,7 +100,7 @@ async def stop_watching_globally(
     tmdb_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """Stop watching a title globally — closes all open WatchRecords for this
     tmdb_id across every list the current user has records in."""
     # Find all open records for this user + tmdb_id
@@ -131,7 +131,7 @@ async def watch_history(
     media_type: str | None = Query(None, description="Filter by 'movie' or 'tv'"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[WatchHistoryItem]:
     """Return every title the current user has a WatchRecord for, de-duped by
     tmdb_id.  Includes watch_count, last_watched, currently_watching, and the
     best available rating."""

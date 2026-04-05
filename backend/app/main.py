@@ -1,5 +1,6 @@
 """Watchr API — FastAPI application entry point."""
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -14,7 +15,7 @@ from app.services.auth import hash_password
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Create database tables on startup, seed dev user if needed."""
     await init_db()
     await migrate_db()
@@ -68,6 +69,6 @@ app.include_router(recommend.router, prefix=API_PREFIX)
 
 
 @app.get("/api/v1/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "ok"}

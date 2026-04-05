@@ -16,7 +16,7 @@ router = APIRouter(prefix="/recommend", tags=["recommend"])
 async def recommend(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[RecommendationResponse]:
     """
     Get naive recommendations across all accessible watchlists.
 

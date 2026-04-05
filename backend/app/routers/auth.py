@@ -19,7 +19,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
+async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)) -> User:
     """Register a new user."""
     # Check for existing username or email
     existing = await db.execute(
@@ -47,7 +47,7 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
-):
+) -> Token:
     """Authenticate and return a JWT."""
     result = await db.execute(select(User).where(User.username == form_data.username))
     user = result.scalar_one_or_none()
@@ -64,6 +64,6 @@ async def login(
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(current_user: User = Depends(get_current_user)) -> User:
     """Return the currently authenticated user."""
     return current_user

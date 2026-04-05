@@ -1,5 +1,7 @@
 """TMDB API client for movie/TV show search and details."""
 
+from typing import Any
+
 import httpx
 
 from app.config import settings
@@ -18,11 +20,11 @@ class TMDBService:
         """Create an httpx client with appropriate SSL settings."""
         return httpx.AsyncClient(verify=self._verify_ssl)
 
-    def _params(self, **kwargs: object) -> dict:
+    def _params(self, **kwargs: object) -> dict[str, Any]:
         """Merge API key into query params."""
         return {"api_key": self.api_key, **kwargs}
 
-    async def search_multi(self, query: str, page: int = 1) -> dict:
+    async def search_multi(self, query: str, page: int = 1) -> dict[str, Any]:
         """Search for movies and TV shows by query string."""
         async with self._client() as client:
             resp = await client.get(
@@ -30,9 +32,9 @@ class TMDBService:
                 params=self._params(query=query, page=page, include_adult=False),
             )
             resp.raise_for_status()
-            return resp.json()
+            return dict(resp.json())
 
-    async def get_movie(self, movie_id: int) -> dict:
+    async def get_movie(self, movie_id: int) -> dict[str, Any]:
         """Get movie details by TMDB ID."""
         async with self._client() as client:
             resp = await client.get(
@@ -40,9 +42,9 @@ class TMDBService:
                 params=self._params(),
             )
             resp.raise_for_status()
-            return resp.json()
+            return dict(resp.json())
 
-    async def get_tv(self, tv_id: int) -> dict:
+    async def get_tv(self, tv_id: int) -> dict[str, Any]:
         """Get TV show details by TMDB ID."""
         async with self._client() as client:
             resp = await client.get(
@@ -50,7 +52,7 @@ class TMDBService:
                 params=self._params(),
             )
             resp.raise_for_status()
-            return resp.json()
+            return dict(resp.json())
 
     def poster_url(self, poster_path: str | None, size: str = "w500") -> str | None:
         """Build a full poster image URL from a TMDB path."""

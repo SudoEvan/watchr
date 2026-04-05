@@ -1,5 +1,7 @@
 """Watch items router — CRUD for items within a watchlist, plus watch records."""
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +25,7 @@ router = APIRouter(prefix="/watchlists/{watchlist_id}/items", tags=["watch_items
 
 def _build_item_response(
     item: WatchItem,
-    last_watched=None,
+    last_watched: date | None = None,
     watch_count: int = 0,
     currently_watching: bool = False,
     active_record_id: str | None = None,
@@ -56,7 +58,7 @@ async def list_items(
     watched: bool | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[WatchItemResponse]:
     """
     List items in a watchlist.
 
@@ -152,7 +154,7 @@ async def add_item(
     body: WatchItemCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> WatchItemResponse:
     """Add a movie/show to a watchlist. Requires manager or owner role."""
     await _require_role(watchlist_id, current_user.id, db, minimum="manager")
 
@@ -189,7 +191,7 @@ async def remove_item(
     item_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """Remove an item from a watchlist. Requires manager or owner role."""
     await _require_role(watchlist_id, current_user.id, db, minimum="manager")
 
@@ -216,7 +218,7 @@ async def update_rating(
     body: RatingUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> WatchItemResponse:
     """Set or update the rating for an item. Any member can rate."""
     await _require_role(watchlist_id, current_user.id, db)
 
@@ -251,7 +253,7 @@ async def list_records(
     item_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[WatchRecord]:
     """List all watch records for an item."""
     await _require_role(watchlist_id, current_user.id, db)
 
@@ -260,7 +262,7 @@ async def list_records(
         .where(WatchRecord.watch_item_id == item_id)
         .order_by(WatchRecord.created_at.desc())
     )
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 @router.post(
@@ -274,7 +276,7 @@ async def create_record(
     body: WatchRecordCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> WatchRecord:
     """Create a watch record (start/finish watching). Requires manager or owner."""
     await _require_role(watchlist_id, current_user.id, db, minimum="manager")
 
@@ -312,7 +314,7 @@ async def update_record(
     body: WatchRecordUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> WatchRecord:
     """Update a watch record (e.g. set end_date to finish watching a TV show)."""
     await _require_role(watchlist_id, current_user.id, db, minimum="manager")
 
@@ -349,7 +351,7 @@ async def delete_record(
     record_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """Delete a watch record. Requires manager or owner."""
     await _require_role(watchlist_id, current_user.id, db, minimum="manager")
 

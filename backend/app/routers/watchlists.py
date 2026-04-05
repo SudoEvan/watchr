@@ -57,7 +57,7 @@ async def _require_role(
 async def list_watchlists(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[WatchListResponse]:
     """List all watchlists the current user has access to."""
     result = await db.execute(
         select(WatchList, WatchListAccess.role)
@@ -106,7 +106,7 @@ async def create_watchlist(
     body: WatchListCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> WatchListResponse:
     """Create a new watchlist. The creating user becomes the owner."""
     watchlist = WatchList(
         name=body.name,
@@ -143,7 +143,7 @@ async def get_watchlist(
     watchlist_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> WatchListResponse:
     """Get a single watchlist by ID."""
     role = await _require_role(watchlist_id, current_user.id, db)
 
@@ -184,7 +184,7 @@ async def update_watchlist(
     body: WatchListUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> WatchListResponse:
     """Update a watchlist. Requires manager or owner role."""
     role = await _require_role(watchlist_id, current_user.id, db, minimum="manager")
 
@@ -220,7 +220,7 @@ async def delete_watchlist(
     watchlist_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """Delete a watchlist. Owner only."""
     await _require_role(watchlist_id, current_user.id, db, minimum="owner")
 
@@ -240,7 +240,7 @@ async def list_access(
     watchlist_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[WatchListAccessResponse]:
     """List all users with access to this watchlist."""
     await _require_role(watchlist_id, current_user.id, db)
 
@@ -273,7 +273,7 @@ async def share_watchlist(
     body: WatchListAccessCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> WatchListAccessResponse:
     """Share a watchlist with another user. Owner only."""
     await _require_role(watchlist_id, current_user.id, db, minimum="owner")
 
@@ -321,7 +321,7 @@ async def revoke_access(
     user_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """Revoke a user's access. Owner only. Cannot revoke own ownership."""
     await _require_role(watchlist_id, current_user.id, db, minimum="owner")
 
@@ -349,7 +349,7 @@ async def add_favorite(
     watchlist_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, str]:
     """Favorite a watchlist."""
     await _require_role(watchlist_id, current_user.id, db)
 
@@ -372,7 +372,7 @@ async def remove_favorite(
     watchlist_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """Unfavorite a watchlist."""
     result = await db.execute(
         select(WatchListFavorite).where(
@@ -396,7 +396,7 @@ async def transfer_ownership(
     body: WatchListTransfer,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, str]:
     """Transfer ownership to another user. Current owner becomes manager."""
     await _require_role(watchlist_id, current_user.id, db, minimum="owner")
 

@@ -1,5 +1,8 @@
 """Async SQLAlchemy engine and session factory."""
 
+from collections.abc import AsyncGenerator
+
+from sqlalchemy import Connection
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -24,7 +27,7 @@ class Base(DeclarativeBase):
     pass
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency that yields an async database session."""
     async with async_session() as session:
         try:
@@ -49,7 +52,7 @@ async def migrate_db() -> None:
         # Collect existing columns per table
         import sqlalchemy
 
-        def _migrate(connection):
+        def _migrate(connection: Connection) -> None:
             inspector = sqlalchemy.inspect(connection)
             for table in Base.metadata.sorted_tables:
                 existing = {c["name"] for c in inspector.get_columns(table.name)}
