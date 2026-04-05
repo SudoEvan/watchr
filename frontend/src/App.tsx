@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import WatchHistory from "./pages/WatchHistory";
 import WatchlistDetail from "./pages/WatchlistDetail";
 import ItemDetail from "./pages/ItemDetail";
 import Layout from "./components/layout/Layout";
@@ -29,6 +30,7 @@ export default function App() {
         }
       >
         <Route index element={<Dashboard />} />
+        <Route path="history" element={<WatchHistory />} />
         <Route path="watchlists/:id" element={<WatchlistDetail />} />
         <Route path="watchlists/:watchlistId/items/:itemId" element={<ItemDetail />} />
       </Route>

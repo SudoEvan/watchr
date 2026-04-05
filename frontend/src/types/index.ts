@@ -66,6 +66,27 @@ export interface Recommendation {
   items: WatchItem[];
 }
 
+export interface CurrentlyWatching {
+  tmdb_id: number;
+  media_type: "movie" | "tv";
+  title: string;
+  poster_path: string | null;
+  started_at: string | null;
+}
+
+export interface WatchHistoryItem {
+  tmdb_id: number;
+  media_type: "movie" | "tv";
+  title: string;
+  poster_path: string | null;
+  overview: string | null;
+  release_year: number | null;
+  watch_count: number;
+  last_watched: string | null;
+  currently_watching: boolean;
+  rating: number | null;
+}
+
 export interface Token {
   access_token: string;
   token_type: string;

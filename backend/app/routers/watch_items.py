@@ -1,22 +1,22 @@
 """Watch items router — CRUD for items within a watchlist, plus watch records."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.user import User
 from app.models.watch_item import WatchItem, WatchRecord
+from app.routers.watchlists import _require_role
 from app.schemas.watch_item import (
+    RatingUpdate,
     WatchItemCreate,
     WatchItemResponse,
-    RatingUpdate,
     WatchRecordCreate,
-    WatchRecordUpdate,
     WatchRecordResponse,
+    WatchRecordUpdate,
 )
 from app.services.auth import get_current_user
-from app.routers.watchlists import _require_role
 
 router = APIRouter(prefix="/watchlists/{watchlist_id}/items", tags=["watch_items"])
 
@@ -79,7 +79,7 @@ async def list_items(
         .subquery()
     )
 
-    # Subquery: active/in-progress watch (start_date set, end_date NULL)
+    # Subquery: active/in-progress watch on THIS specific item (for active_record_id)
     active_watch = (
         select(
             WatchRecord.watch_item_id,
@@ -92,15 +92,31 @@ async def list_items(
         .subquery()
     )
 
+    # Subquery: global "currently watching" — current user has an open record
+    # on ANY WatchItem with the same tmdb_id (not just this list's item).
+    global_watching = (
+        select(WatchItem.tmdb_id)
+        .join(WatchRecord, WatchRecord.watch_item_id == WatchItem.id)
+        .where(
+            WatchRecord.user_id == current_user.id,
+            WatchRecord.start_date.isnot(None),
+            WatchRecord.end_date.is_(None),
+        )
+        .distinct()
+        .subquery()
+    )
+
     query = (
         select(
             WatchItem,
             latest_watch.c.last_watched,
             latest_watch.c.watch_count,
             active_watch.c.active_record_id,
+            global_watching.c.tmdb_id.label("globally_watching"),
         )
         .outerjoin(latest_watch, WatchItem.id == latest_watch.c.watch_item_id)
         .outerjoin(active_watch, WatchItem.id == active_watch.c.watch_item_id)
+        .outerjoin(global_watching, WatchItem.tmdb_id == global_watching.c.tmdb_id)
         .where(WatchItem.watchlist_id == watchlist_id)
     )
 
@@ -109,8 +125,11 @@ async def list_items(
     elif watched is False:
         query = query.where(latest_watch.c.last_watched.is_(None))
 
-    # Default sort: last watched ASC (nulls first = unwatched at top)
-    query = query.order_by(latest_watch.c.last_watched.asc().nullsfirst())
+    # Sort: currently watching first, then unwatched, then by last watched
+    query = query.order_by(
+        global_watching.c.tmdb_id.is_(None).asc(),  # watching items first
+        latest_watch.c.last_watched.asc().nullsfirst(),
+    )
 
     result = await db.execute(query)
     rows = result.all()
@@ -120,10 +139,10 @@ async def list_items(
             item,
             last_watched,
             watch_count or 0,
-            currently_watching=active_record_id is not None,
+            currently_watching=globally_watching is not None,
             active_record_id=active_record_id,
         )
-        for item, last_watched, watch_count, active_record_id in rows
+        for item, last_watched, watch_count, active_record_id, globally_watching in rows
     ]
 
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, UserPlus, Trash2, RefreshCw } from "lucide-react";
+import ConfirmModal from "./ConfirmModal";
 import client from "../api/client";
 import type { WatchList, WatchListAccess, User } from "../types";
 
@@ -18,6 +19,8 @@ export default function WatchlistSettings({ watchlist, onClose }: Props) {
   const [userResults, setUserResults] = useState<User[]>([]);
   const [searching, setSearching] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [confirmRevokeUserId, setConfirmRevokeUserId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     const changed =
@@ -224,11 +227,7 @@ export default function WatchlistSettings({ watchlist, onClose }: Props) {
                   </div>
                   {isOwner && access.role !== "owner" && (
                     <button
-                      onClick={() => {
-                        if (window.confirm(`Remove ${access.user_display_name ?? "this user"} from the list?`)) {
-                          revokeAccess.mutate(access.user_id);
-                        }
-                      }}
+                      onClick={() => setConfirmRevokeUserId(access.user_id)}
                       className="rounded p-1 transition-opacity hover:opacity-70"
                       style={{ color: "var(--text-secondary)" }}
                     >
@@ -323,11 +322,7 @@ export default function WatchlistSettings({ watchlist, onClose }: Props) {
                 Danger Zone
               </h3>
               <button
-                onClick={() => {
-                  if (window.confirm(`Permanently delete "${watchlist.name}"? This cannot be undone.`)) {
-                    deleteWatchlist.mutate();
-                  }
-                }}
+                onClick={() => setConfirmDelete(true)}
                 disabled={deleteWatchlist.isPending}
                 className="rounded-lg border border-red-500 px-4 py-2 text-sm font-medium text-red-500 transition-opacity hover:opacity-80"
               >
@@ -337,6 +332,32 @@ export default function WatchlistSettings({ watchlist, onClose }: Props) {
           )}
         </div>
       </div>
+      {confirmRevokeUserId && (
+        <ConfirmModal
+          title="Remove User"
+          message={`Remove ${accessList.find((a) => a.user_id === confirmRevokeUserId)?.user_display_name ?? "this user"} from the list?`}
+          confirmLabel="Remove"
+          destructive
+          onConfirm={() => {
+            revokeAccess.mutate(confirmRevokeUserId);
+            setConfirmRevokeUserId(null);
+          }}
+          onCancel={() => setConfirmRevokeUserId(null)}
+        />
+      )}
+      {confirmDelete && (
+        <ConfirmModal
+          title="Delete Watchlist"
+          message={`Permanently delete "${watchlist.name}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            deleteWatchlist.mutate();
+            setConfirmDelete(false);
+          }}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
     </div>
   );
 }

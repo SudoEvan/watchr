@@ -5,6 +5,7 @@ import { ArrowLeft, Plus, Search, Eye, EyeOff, Trash2, Play, Square, Check, Sett
 import WatchlistSettings from "../components/WatchlistSettings";
 import RatingModal from "../components/RatingModal";
 import StarRating from "../components/StarRating";
+import ConfirmModal from "../components/ConfirmModal";
 import client from "../api/client";
 import type { WatchList, WatchItem, TMDBSearchResponse, TMDBSearchResult } from "../types";
 
@@ -163,6 +164,7 @@ export default function WatchlistDetail() {
   const [showSettings, setShowSettings] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [ratingItemId, setRatingItemId] = useState<string | null>(null);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
 
   const { data: watchlist } = useQuery<WatchList>({
     queryKey: ["watchlist", id],
@@ -231,6 +233,7 @@ export default function WatchlistDetail() {
         setRatingItemId(itemId);
       }
       queryClient.invalidateQueries({ queryKey: ["watchlist-items", id] });
+      queryClient.invalidateQueries({ queryKey: ["currently-watching"] });
     },
   });
 
@@ -245,17 +248,15 @@ export default function WatchlistDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watchlist-items", id] });
+      queryClient.invalidateQueries({ queryKey: ["currently-watching"] });
     },
   });
 
   const stopWatching = useMutation({
-    mutationFn: async ({ itemId, recordId }: { itemId: string; recordId: string }) => {
-      const today = new Date().toISOString().slice(0, 10);
-      return (
-        await client.patch(`/watchlists/${id}/items/${itemId}/records/${recordId}`, {
-          end_date: today,
-        })
-      ).data;
+    mutationFn: async ({ itemId }: { itemId: string }) => {
+      const item = items.find((i) => i.id === itemId);
+      if (!item) return;
+      await client.delete(`/users/me/watching/${item.tmdb_id}`);
     },
     onSuccess: (_data, { itemId }) => {
       const item = items.find((i) => i.id === itemId);
@@ -263,6 +264,7 @@ export default function WatchlistDetail() {
         setRatingItemId(itemId);
       }
       queryClient.invalidateQueries({ queryKey: ["watchlist-items", id] });
+      queryClient.invalidateQueries({ queryKey: ["currently-watching"] });
     },
   });
 
@@ -457,11 +459,7 @@ export default function WatchlistDetail() {
                   >
                     {canEdit && (
                       <button
-                        onClick={() => {
-                          if (window.confirm(`Remove "${item.title}" from this list?`)) {
-                            removeItem.mutate(item.id);
-                          }
-                        }}
+                        onClick={() => setConfirmRemoveId(item.id)}
                         className="absolute right-2 top-2 z-10 rounded-full p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
                         style={{ backgroundColor: "rgba(0,0,0,0.6)", color: "#fff" }}
                       >
@@ -523,8 +521,7 @@ export default function WatchlistDetail() {
                           ) : item.currently_watching ? (
                             <button
                               onClick={() =>
-                                item.active_record_id &&
-                                stopWatching.mutate({ itemId: item.id, recordId: item.active_record_id })
+                                stopWatching.mutate({ itemId: item.id })
                               }
                               disabled={stopWatching.isPending}
                               className="flex w-full items-center justify-center gap-1.5 rounded-lg border py-1.5 text-xs font-medium transition-opacity hover:opacity-80"
@@ -567,14 +564,9 @@ export default function WatchlistDetail() {
                     onMarkWatched={() => markWatched.mutate(item.id)}
                     onStartWatching={() => startWatching.mutate(item.id)}
                     onStopWatching={() =>
-                      item.active_record_id &&
-                      stopWatching.mutate({ itemId: item.id, recordId: item.active_record_id })
+                      stopWatching.mutate({ itemId: item.id })
                     }
-                    onRemove={() => {
-                      if (window.confirm(`Remove "${item.title}" from this list?`)) {
-                        removeItem.mutate(item.id);
-                      }
-                    }}
+                    onRemove={() => setConfirmRemoveId(item.id)}
                     isPending={{
                       markWatched: markWatched.isPending,
                       startWatching: startWatching.isPending,
@@ -597,6 +589,20 @@ export default function WatchlistDetail() {
           title={ratingItem.title}
           onSubmit={(rating) => submitRating.mutate({ itemId: ratingItem.id, rating })}
           onSkip={() => setRatingItemId(null)}
+        />
+      )}
+      {/* Confirm remove item modal */}
+      {confirmRemoveId && (
+        <ConfirmModal
+          title="Remove Item"
+          message={`Remove "${items.find((i) => i.id === confirmRemoveId)?.title}" from this list?`}
+          confirmLabel="Remove"
+          destructive
+          onConfirm={() => {
+            removeItem.mutate(confirmRemoveId);
+            setConfirmRemoveId(null);
+          }}
+          onCancel={() => setConfirmRemoveId(null)}
         />
       )}
     </div>

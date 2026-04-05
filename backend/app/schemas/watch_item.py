@@ -64,6 +64,27 @@ class WatchRecordResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CurrentlyWatchingResponse(BaseModel):
+    tmdb_id: int
+    media_type: str
+    title: str
+    poster_path: str | None
+    started_at: date | None = None
+
+
+class WatchHistoryItem(BaseModel):
+    tmdb_id: int
+    media_type: str
+    title: str
+    poster_path: str | None
+    overview: str | None
+    release_year: int | None
+    watch_count: int = 0
+    last_watched: date | None = None
+    currently_watching: bool = False
+    rating: float | None = None
+
+
 class RecommendationResponse(BaseModel):
     watchlist_id: str
     watchlist_name: str

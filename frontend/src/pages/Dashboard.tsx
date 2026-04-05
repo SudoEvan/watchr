@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Star, StarOff, List, RefreshCw } from "lucide-react";
+import { Plus, Star, StarOff, List, RefreshCw, Play, Square } from "lucide-react";
 import client from "../api/client";
-import type { WatchList } from "../types";
+import type { WatchList, CurrentlyWatching } from "../types";
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -15,6 +15,21 @@ export default function Dashboard() {
   const { data: watchlists = [], isLoading } = useQuery<WatchList[]>({
     queryKey: ["watchlists"],
     queryFn: async () => (await client.get("/watchlists")).data,
+  });
+
+  const { data: currentlyWatching = [] } = useQuery<CurrentlyWatching[]>({
+    queryKey: ["currently-watching"],
+    queryFn: async () => (await client.get("/users/me/watching")).data,
+  });
+
+  const stopWatching = useMutation({
+    mutationFn: async (tmdbId: number) => {
+      await client.delete(`/users/me/watching/${tmdbId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["currently-watching"] });
+      queryClient.invalidateQueries({ queryKey: ["watchlist-items"] });
+    },
   });
 
   const createMutation = useMutation({
@@ -150,6 +165,64 @@ export default function Dashboard() {
             </div>
           </form>
         </div>
+      )}
+
+      {/* Currently Watching */}
+      {currentlyWatching.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide" style={{ color: "var(--text-secondary)" }}>
+            <Play size={14} />
+            Currently Watching
+          </h2>
+          <div className="flex gap-4 overflow-x-auto pb-2">
+            {currentlyWatching.map((cw) => (
+              <div
+                key={cw.tmdb_id}
+                className="group relative flex-shrink-0 w-36 overflow-hidden rounded-xl border transition-all hover:shadow-lg"
+                style={{ backgroundColor: "var(--bg-secondary)", borderColor: "var(--border)" }}
+              >
+                <button
+                  onClick={() => stopWatching.mutate(cw.tmdb_id)}
+                  disabled={stopWatching.isPending}
+                  className="absolute right-1.5 top-1.5 z-10 rounded-full p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
+                  style={{ backgroundColor: "rgba(0,0,0,0.6)", color: "#fff" }}
+                  title="Stop watching"
+                >
+                  <Square size={12} />
+                </button>
+                <div
+                  className="absolute left-1.5 top-1.5 z-10 rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+                  style={{ backgroundColor: "var(--accent-secondary)" }}
+                >
+                  Watching
+                </div>
+                {cw.poster_path ? (
+                  <img
+                    src={`https://image.tmdb.org/t/p/w300${cw.poster_path}`}
+                    alt={cw.title}
+                    className="h-52 w-full object-cover"
+                  />
+                ) : (
+                  <div
+                    className="flex h-52 w-full items-center justify-center"
+                    style={{ backgroundColor: "var(--bg-surface)" }}
+                  >
+                    <span className="text-3xl" style={{ color: "var(--text-secondary)" }}>?</span>
+                  </div>
+                )}
+                <div className="p-2">
+                  <p className="text-xs font-medium line-clamp-2" style={{ color: "var(--text-primary)" }}>
+                    {cw.title}
+                  </p>
+                  <p className="mt-0.5 text-[10px]" style={{ color: "var(--text-secondary)" }}>
+                    {cw.media_type === "movie" ? "Movie" : "TV Show"}
+                    {cw.started_at && ` · Since ${cw.started_at}`}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* Empty state */}

@@ -1,6 +1,6 @@
 import { Outlet, Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Film, LogOut, User } from "lucide-react";
+import { Film, LogOut, User, History } from "lucide-react";
 
 export default function Layout() {
   const navigate = useNavigate();
@@ -28,6 +28,14 @@ export default function Layout() {
             Watchr
           </Link>
           <div className="flex items-center gap-3">
+            <Link
+              to="/history"
+              className="rounded-lg p-2 transition-colors hover:opacity-80"
+              style={{ color: "var(--text-secondary)" }}
+              title="Watch History"
+            >
+              <History size={20} />
+            </Link>
             <button
               className="rounded-lg p-2 transition-colors hover:opacity-80"
               style={{ color: "var(--text-secondary)" }}

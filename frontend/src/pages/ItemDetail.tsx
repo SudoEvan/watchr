@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronUp, ChevronDown, Pencil, Check, X, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronUp, ChevronDown, Pencil, Check, X, Trash2, Plus, Play, Square } from "lucide-react";
 import StarRating from "../components/StarRating";
+import ConfirmModal from "../components/ConfirmModal";
 import client from "../api/client";
 import type { WatchItem, WatchRecord } from "../types";
 
@@ -17,6 +18,10 @@ export default function ItemDetail() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editStart, setEditStart] = useState("");
   const [editEnd, setEditEnd] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [showAddRecord, setShowAddRecord] = useState(false);
+  const [newStart, setNewStart] = useState("");
+  const [newEnd, setNewEnd] = useState("");
 
   const { data: items = [] } = useQuery<WatchItem[]>({
     queryKey: ["watchlist-items-all", watchlistId],
@@ -61,6 +66,55 @@ export default function ItemDetail() {
     },
   });
 
+  const createRecord = useMutation({
+    mutationFn: async ({ start_date, end_date }: { start_date: string | null; end_date: string | null }) => {
+      return (
+        await client.post(`/watchlists/${watchlistId}/items/${itemId}/records`, {
+          start_date,
+          end_date,
+        })
+      ).data;
+    },
+    onSuccess: () => {
+      setShowAddRecord(false);
+      setNewStart("");
+      setNewEnd("");
+      queryClient.invalidateQueries({ queryKey: ["watch-records", watchlistId, itemId] });
+      queryClient.invalidateQueries({ queryKey: ["watchlist-items", watchlistId] });
+      queryClient.invalidateQueries({ queryKey: ["watchlist-items-all", watchlistId] });
+    },
+  });
+
+  const startWatching = useMutation({
+    mutationFn: async () => {
+      const today = new Date().toISOString().split("T")[0];
+      return (
+        await client.post(`/watchlists/${watchlistId}/items/${itemId}/records`, {
+          start_date: today,
+        })
+      ).data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["watch-records", watchlistId, itemId] });
+      queryClient.invalidateQueries({ queryKey: ["watchlist-items", watchlistId] });
+      queryClient.invalidateQueries({ queryKey: ["watchlist-items-all", watchlistId] });
+      queryClient.invalidateQueries({ queryKey: ["currently-watching"] });
+    },
+  });
+
+  const stopWatching = useMutation({
+    mutationFn: async () => {
+      if (!item) return;
+      await client.delete(`/users/me/watching/${item.tmdb_id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["watch-records", watchlistId, itemId] });
+      queryClient.invalidateQueries({ queryKey: ["watchlist-items", watchlistId] });
+      queryClient.invalidateQueries({ queryKey: ["watchlist-items-all", watchlistId] });
+      queryClient.invalidateQueries({ queryKey: ["currently-watching"] });
+    },
+  });
+
   const deleteRecord = useMutation({
     mutationFn: async (recordId: string) => {
       await client.delete(`/watchlists/${watchlistId}/items/${itemId}/records/${recordId}`);
@@ -69,6 +123,7 @@ export default function ItemDetail() {
       queryClient.invalidateQueries({ queryKey: ["watch-records", watchlistId, itemId] });
       queryClient.invalidateQueries({ queryKey: ["watchlist-items", watchlistId] });
       queryClient.invalidateQueries({ queryKey: ["watchlist-items-all", watchlistId] });
+      queryClient.invalidateQueries({ queryKey: ["currently-watching"] });
     },
   });
 
@@ -186,6 +241,31 @@ export default function ItemDetail() {
             </div>
           </div>
 
+          {/* Start / Stop watching */}
+          <div className="mt-4">
+            {item.currently_watching ? (
+              <button
+                onClick={() => stopWatching.mutate()}
+                disabled={stopWatching.isPending}
+                className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "var(--accent-secondary)" }}
+              >
+                <Square size={14} />
+                Stop Watching
+              </button>
+            ) : (
+              <button
+                onClick={() => startWatching.mutate()}
+                disabled={startWatching.isPending}
+                className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "var(--accent-primary)" }}
+              >
+                <Play size={14} />
+                Start Watching
+              </button>
+            )}
+          </div>
+
           {item.overview && (
             <p className="mt-4 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
               {item.overview}
@@ -196,9 +276,74 @@ export default function ItemDetail() {
 
       {/* Watch history table */}
       <div className="mt-8">
-        <h2 className="mb-4 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-          Watch History
-        </h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+            Watch History
+          </h2>
+          <button
+            onClick={() => setShowAddRecord(!showAddRecord)}
+            className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80"
+            style={{ borderColor: "var(--border)", color: "var(--accent-primary)" }}
+          >
+            <Plus size={12} />
+            Add Record
+          </button>
+        </div>
+        {showAddRecord && (
+          <div
+            className="mb-4 rounded-xl border p-4"
+            style={{ backgroundColor: "var(--bg-secondary)", borderColor: "var(--border)" }}
+          >
+            <div className="flex flex-wrap items-end gap-3">
+              {!isMovie && (
+                <div>
+                  <label className="mb-1 block text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Start Date</label>
+                  <input
+                    type="date"
+                    value={newStart}
+                    onChange={(e) => setNewStart(e.target.value)}
+                    className="rounded-lg border px-3 py-1.5 text-sm outline-none"
+                    style={dateInputStyle}
+                  />
+                </div>
+              )}
+              <div>
+                <label className="mb-1 block text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+                  {isMovie ? "Watched Date" : "End Date"}
+                </label>
+                <input
+                  type="date"
+                  value={newEnd}
+                  onChange={(e) => setNewEnd(e.target.value)}
+                  className="rounded-lg border px-3 py-1.5 text-sm outline-none"
+                  style={dateInputStyle}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    createRecord.mutate({
+                      start_date: isMovie ? (newEnd || null) : (newStart || null),
+                      end_date: newEnd || null,
+                    });
+                  }}
+                  disabled={createRecord.isPending}
+                  className="rounded-lg px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: "var(--accent-primary)" }}
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => { setShowAddRecord(false); setNewStart(""); setNewEnd(""); }}
+                  className="rounded-lg border px-4 py-1.5 text-sm transition-opacity hover:opacity-80"
+                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {records.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
             No watch records yet.
@@ -319,11 +464,7 @@ export default function ItemDetail() {
                               <Pencil size={14} />
                             </button>
                             <button
-                              onClick={() => {
-                                if (window.confirm("Remove this watch record?")) {
-                                  deleteRecord.mutate(record.id);
-                                }
-                              }}
+                              onClick={() => setConfirmDeleteId(record.id)}
                               className="rounded p-1 hover:opacity-70"
                               style={{ color: "#ef4444" }}
                             >
@@ -340,6 +481,19 @@ export default function ItemDetail() {
           </div>
         )}
       </div>
+      {confirmDeleteId && (
+        <ConfirmModal
+          title="Delete Watch Record"
+          message="Are you sure you want to remove this watch record? This cannot be undone."
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            deleteRecord.mutate(confirmDeleteId);
+            setConfirmDeleteId(null);
+          }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
     </div>
   );
 }
