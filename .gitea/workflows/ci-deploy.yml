@@ -88,14 +88,15 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
           apt-get update -qq && apt-get install -y -qq openssh-client >/dev/null 2>&1
-          mkdir -p ~/.ssh
-          echo "${SSH_KEY}" > ~/.ssh/id_deploy
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${SSH_KEY}" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
           ssh-keyscan -p "${SSH_PORT}" "${SSH_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
 
-          ssh -i ~/.ssh/id_deploy -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" bash -s <<SCRIPT
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_deploy -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" bash -s -- "${DEPLOY_PATH}" <<'SCRIPT'
           set -e
-          cd ${DEPLOY_PATH}
+          DEPLOY_DIR="$1"
+          cd "$DEPLOY_DIR"
 
           echo "==> Pulling latest from main..."
           git fetch origin main
@@ -107,19 +108,19 @@ jobs:
           docker compose up -d --force-recreate --remove-orphans
 
           echo "==> Waiting for backend health check..."
-          for i in \$(seq 1 30); do
+          for i in $(seq 1 30); do
             if docker compose exec -T backend python -c \
               "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')" \
               2>/dev/null; then
               echo "==> Backend healthy!"
               break
             fi
-            if [ "\$i" -eq 30 ]; then
+            if [ "$i" -eq 30 ]; then
               echo "==> ERROR: Backend failed health check after 30 attempts"
               docker compose logs --tail=50 backend
               exit 1
             fi
-            echo "    Attempt \$i/30 — waiting 5s..."
+            echo "    Attempt $i/30 — waiting 5s..."
             sleep 5
           done
 
