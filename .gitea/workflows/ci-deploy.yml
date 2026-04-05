@@ -65,6 +65,7 @@ jobs:
   deploy:
     needs: [backend, frontend]
     runs-on: docker
+    container: node:20-bookworm-slim
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
