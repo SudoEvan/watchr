@@ -3,7 +3,6 @@
 import pytest
 from httpx import AsyncClient
 
-
 USER_DATA = {
     "username": "itemuser",
     "email": "item@example.com",
@@ -92,9 +91,7 @@ async def test_list_items(client: AsyncClient):
         headers=_auth(token),
     )
 
-    resp = await client.get(
-        f"/api/v1/watchlists/{wl_id}/items", headers=_auth(token)
-    )
+    resp = await client.get(f"/api/v1/watchlists/{wl_id}/items", headers=_auth(token))
     assert resp.status_code == 200
     assert len(resp.json()) == 2
 
@@ -117,9 +114,7 @@ async def test_remove_item(client: AsyncClient):
     assert resp.status_code == 204
 
     # Verify it's gone
-    list_resp = await client.get(
-        f"/api/v1/watchlists/{wl_id}/items", headers=_auth(token)
-    )
+    list_resp = await client.get(f"/api/v1/watchlists/{wl_id}/items", headers=_auth(token))
     assert len(list_resp.json()) == 0
 
 

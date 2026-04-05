@@ -4,14 +4,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
 
 from app.config import settings
-from app.database import init_db, migrate_db, async_session
+from app.database import async_session, init_db, migrate_db
 from app.models.user import User
+from app.routers import auth, recommend, search, users, watch_items, watchlists
 from app.services.auth import hash_password
-from app.routers import auth, users, watchlists, watch_items, search, recommend
-
-from sqlalchemy import select
 
 
 @asynccontextmanager
@@ -27,9 +26,7 @@ async def lifespan(app: FastAPI):
 async def _seed_dev_user() -> None:
     """Create a default dev user if it doesn't already exist."""
     async with async_session() as session:
-        result = await session.execute(
-            select(User).where(User.username == "dev")
-        )
+        result = await session.execute(select(User).where(User.username == "dev"))
         if result.scalar_one_or_none() is None:
             session.add(
                 User(

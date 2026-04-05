@@ -1,20 +1,20 @@
 """Watchlists router — CRUD, sharing, favorites, transfer."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.user import User
-from app.models.watchlist import WatchList, WatchListAccess, WatchListFavorite
 from app.models.watch_item import WatchItem
+from app.models.watchlist import WatchList, WatchListAccess, WatchListFavorite
 from app.schemas.watchlist import (
-    WatchListCreate,
-    WatchListUpdate,
-    WatchListResponse,
     WatchListAccessCreate,
     WatchListAccessResponse,
+    WatchListCreate,
+    WatchListResponse,
     WatchListTransfer,
+    WatchListUpdate,
 )
 from app.services.auth import get_current_user
 
@@ -24,9 +24,7 @@ router = APIRouter(prefix="/watchlists", tags=["watchlists"])
 # ── Helpers ─────────────────────────────────────────
 
 
-async def _get_user_role(
-    watchlist_id: str, user_id: str, db: AsyncSession
-) -> str | None:
+async def _get_user_role(watchlist_id: str, user_id: str, db: AsyncSession) -> str | None:
     """Return the user's role for a watchlist, or None if no access."""
     result = await db.execute(
         select(WatchListAccess.role).where(

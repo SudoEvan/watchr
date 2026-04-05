@@ -24,10 +24,7 @@ async def search_users(
 ):
     """Search users by username prefix. Used for sharing watchlists."""
     result = await db.execute(
-        select(User)
-        .where(User.username.ilike(f"{q}%"))
-        .where(User.id != current_user.id)
-        .limit(10)
+        select(User).where(User.username.ilike(f"{q}%")).where(User.id != current_user.id).limit(10)
     )
     return result.scalars().all()
 

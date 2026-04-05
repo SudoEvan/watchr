@@ -1,7 +1,7 @@
 """Shared test fixtures for the Watchr backend."""
 
 import asyncio
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio

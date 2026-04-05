@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     app_debug: bool = True
 
     # Backend
-    backend_host: str = "0.0.0.0"
+    backend_host: str = "0.0.0.0"  # noqa: S104
     backend_port: int = 8000
     backend_cors_origins: list[str] = ["http://localhost:5173"]
 

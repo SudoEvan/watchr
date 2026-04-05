@@ -3,7 +3,6 @@
 import pytest
 from httpx import AsyncClient
 
-
 USER_DATA = {
     "username": "testuser",
     "email": "test@example.com",

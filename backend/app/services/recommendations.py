@@ -1,16 +1,13 @@
 """Naive recommendation service — top 3 per list by last watched ASC."""
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from app.models.watchlist import WatchList, WatchListAccess
 from app.models.watch_item import WatchItem, WatchRecord
+from app.models.watchlist import WatchList, WatchListAccess
 
 
-async def get_recommendations(
-    user_id: str, db: AsyncSession
-) -> list[dict]:
+async def get_recommendations(user_id: str, db: AsyncSession) -> list[dict]:
     """
     Return the top 3 'what to watch next' items per accessible watchlist.
 
@@ -23,9 +20,7 @@ async def get_recommendations(
     """
     # Get all watchlists the user has access to
     access_result = await db.execute(
-        select(WatchListAccess.watchlist_id).where(
-            WatchListAccess.user_id == user_id
-        )
+        select(WatchListAccess.watchlist_id).where(WatchListAccess.user_id == user_id)
     )
     watchlist_ids = [row[0] for row in access_result.all()]
 
@@ -36,9 +31,7 @@ async def get_recommendations(
 
     for wl_id in watchlist_ids:
         # Fetch the watchlist
-        wl_result = await db.execute(
-            select(WatchList).where(WatchList.id == wl_id)
-        )
+        wl_result = await db.execute(select(WatchList).where(WatchList.id == wl_id))
         watchlist = wl_result.scalar_one_or_none()
         if not watchlist:
             continue

@@ -3,7 +3,6 @@
 import pytest
 from httpx import AsyncClient
 
-
 USER_DATA = {
     "username": "wluser",
     "email": "wl@example.com",
@@ -134,15 +133,11 @@ async def test_favorite_watchlist(client: AsyncClient):
     wl_id = create_resp.json()["id"]
 
     # Add favorite
-    fav_resp = await client.post(
-        f"/api/v1/watchlists/{wl_id}/favorite", headers=_auth(token)
-    )
+    fav_resp = await client.post(f"/api/v1/watchlists/{wl_id}/favorite", headers=_auth(token))
     assert fav_resp.status_code == 201
 
     # Remove favorite
-    unfav_resp = await client.delete(
-        f"/api/v1/watchlists/{wl_id}/favorite", headers=_auth(token)
-    )
+    unfav_resp = await client.delete(f"/api/v1/watchlists/{wl_id}/favorite", headers=_auth(token))
     assert unfav_resp.status_code == 204
 
 
