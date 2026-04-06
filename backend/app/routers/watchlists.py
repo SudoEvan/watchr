@@ -40,7 +40,7 @@ async def _require_role(
     watchlist_id: str, user_id: str, db: AsyncSession, minimum: str = "viewer"
 ) -> str:
     """Raise 403 if user doesn't have at least the minimum role."""
-    role_hierarchy = {"owner": 3, "manager": 2, "viewer": 1}
+    role_hierarchy = {"owner": 4, "manager": 3, "watcher": 2, "viewer": 1}
     role = await _get_user_role(watchlist_id, user_id, db)
     if role is None or role_hierarchy.get(role, 0) < role_hierarchy.get(minimum, 0):
         raise HTTPException(
@@ -277,8 +277,10 @@ async def share_watchlist(
     """Share a watchlist with another user. Owner only."""
     await _require_role(watchlist_id, current_user.id, db, minimum="owner")
 
-    if body.role not in ("manager", "viewer"):
-        raise HTTPException(status_code=400, detail="Role must be 'manager' or 'viewer'")
+    if body.role not in ("manager", "watcher", "viewer"):
+        raise HTTPException(
+            status_code=400, detail="Role must be 'manager', 'watcher', or 'viewer'"
+        )
 
     # Check target user exists
     target_user = await db.execute(select(User).where(User.id == body.user_id))

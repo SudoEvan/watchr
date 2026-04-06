@@ -1,0 +1,75 @@
+%% Watchr Entity Relationship Diagram
+%% Shared watching: WatchRecords are shared across all owner/manager
+%% participants of a WatchList. The user_id on WatchRecord means
+%% "initiated by", not "applies only to".
+
+erDiagram
+    User {
+        string id PK
+        string username UK
+        string email UK
+        string hashed_password
+        string display_name
+        string theme_preference
+        datetime created_at
+        datetime updated_at
+    }
+
+    WatchList {
+        string id PK
+        string name
+        string description
+        bool is_rewatch
+        datetime created_at
+        datetime updated_at
+    }
+
+    WatchListAccess {
+        string id PK
+        string watchlist_id FK
+        string user_id FK
+        string role "owner | manager | watcher | viewer"
+        datetime created_at
+    }
+
+    WatchListFavorite {
+        string id PK
+        string watchlist_id FK
+        string user_id FK
+        datetime created_at
+    }
+
+    WatchItem {
+        string id PK
+        string watchlist_id FK
+        int tmdb_id
+        string media_type "movie | tv"
+        string title
+        string poster_path
+        string overview
+        int release_year
+        string added_by FK
+        int sort_order
+        float rating
+        string rated_by FK
+        datetime created_at
+    }
+
+    WatchRecord {
+        string id PK
+        string watch_item_id FK
+        string user_id FK "initiated_by"
+        date start_date
+        date end_date
+        string notes
+        datetime created_at
+    }
+
+    User ||--o{ WatchListAccess : "has access via"
+    WatchList ||--o{ WatchListAccess : "shared with"
+    User ||--o{ WatchListFavorite : "favorites"
+    WatchList ||--o{ WatchListFavorite : "favorited by"
+    WatchList ||--o{ WatchItem : "contains"
+    User ||--o{ WatchItem : "added_by"
+    WatchItem ||--o{ WatchRecord : "tracked by"
+    User ||--o{ WatchRecord : "initiated_by"

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.user import User
 from app.models.watch_item import WatchItem, WatchRecord
+from app.models.watchlist import WatchListAccess
 from app.routers.watchlists import _require_role
 from app.schemas.watch_item import (
     RatingUpdate,
@@ -19,6 +20,9 @@ from app.schemas.watch_item import (
     WatchRecordUpdate,
 )
 from app.services.auth import get_current_user
+
+# Roles that participate in shared watching
+_WATCHING_ROLES = ("owner", "manager", "watcher")
 
 router = APIRouter(prefix="/watchlists/{watchlist_id}/items", tags=["watch_items"])
 
@@ -94,13 +98,23 @@ async def list_items(
         .subquery()
     )
 
-    # Subquery: global "currently watching" — current user has an open record
-    # on ANY WatchItem with the same tmdb_id (not just this list's item).
+    # Subquery: watchlist IDs where user is owner/manager/watcher
+    my_lists = (
+        select(WatchListAccess.watchlist_id)
+        .where(
+            WatchListAccess.user_id == current_user.id,
+            WatchListAccess.role.in_(_WATCHING_ROLES),
+        )
+        .subquery()
+    )
+
+    # Subquery: global "currently watching" — any open record on a WatchItem
+    # with the same tmdb_id in ANY list the user participates in.
     global_watching = (
         select(WatchItem.tmdb_id)
         .join(WatchRecord, WatchRecord.watch_item_id == WatchItem.id)
         .where(
-            WatchRecord.user_id == current_user.id,
+            WatchItem.watchlist_id.in_(select(my_lists.c.watchlist_id)),
             WatchRecord.start_date.isnot(None),
             WatchRecord.end_date.is_(None),
         )
@@ -277,8 +291,8 @@ async def create_record(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> WatchRecord:
-    """Create a watch record (start/finish watching). Requires manager or owner."""
-    await _require_role(watchlist_id, current_user.id, db, minimum="manager")
+    """Create a watch record (start/finish watching). Requires watcher, manager, or owner."""
+    await _require_role(watchlist_id, current_user.id, db, minimum="watcher")
 
     # Verify item exists in this watchlist
     item_result = await db.execute(
@@ -316,7 +330,7 @@ async def update_record(
     db: AsyncSession = Depends(get_db),
 ) -> WatchRecord:
     """Update a watch record (e.g. set end_date to finish watching a TV show)."""
-    await _require_role(watchlist_id, current_user.id, db, minimum="manager")
+    await _require_role(watchlist_id, current_user.id, db, minimum="watcher")
 
     result = await db.execute(
         select(WatchRecord).where(
@@ -352,8 +366,8 @@ async def delete_record(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Delete a watch record. Requires manager or owner."""
-    await _require_role(watchlist_id, current_user.id, db, minimum="manager")
+    """Delete a watch record. Requires watcher, manager, or owner."""
+    await _require_role(watchlist_id, current_user.id, db, minimum="watcher")
 
     result = await db.execute(
         select(WatchRecord).where(

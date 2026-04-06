@@ -9,9 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.user import User
 from app.models.watch_item import WatchItem, WatchRecord
+from app.models.watchlist import WatchListAccess
 from app.schemas.user import UserResponse, UserUpdate
 from app.schemas.watch_item import CurrentlyWatchingResponse, WatchHistoryItem
 from app.services.auth import get_current_user
+
+# Roles that participate in shared watching
+_WATCHING_ROLES = ("owner", "manager", "watcher")
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -62,9 +66,19 @@ async def list_currently_watching(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[CurrentlyWatchingResponse]:
-    """List all titles the current user is actively watching (across all lists)."""
-    # Find distinct (tmdb_id, media_type, title, poster_path) where user has an
-    # open WatchRecord (start_date set, end_date NULL).
+    """List all titles the current user is actively watching (across all lists).
+
+    Includes items from shared lists where the user is owner/manager/watcher."""
+    # Subquery: watchlist IDs where the current user has a watching role
+    my_lists = (
+        select(WatchListAccess.watchlist_id)
+        .where(
+            WatchListAccess.user_id == current_user.id,
+            WatchListAccess.role.in_(_WATCHING_ROLES),
+        )
+        .subquery()
+    )
+
     query = (
         select(
             WatchItem.tmdb_id,
@@ -75,7 +89,7 @@ async def list_currently_watching(
         )
         .join(WatchRecord, WatchRecord.watch_item_id == WatchItem.id)
         .where(
-            WatchRecord.user_id == current_user.id,
+            WatchItem.watchlist_id.in_(select(my_lists.c.watchlist_id)),
             WatchRecord.start_date.isnot(None),
             WatchRecord.end_date.is_(None),
         )
@@ -102,14 +116,24 @@ async def stop_watching_globally(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Stop watching a title globally — closes all open WatchRecords for this
-    tmdb_id across every list the current user has records in."""
-    # Find all open records for this user + tmdb_id
+    tmdb_id across every shared list the current user participates in."""
+    # Watchlist IDs where the current user has a watching role
+    my_lists = (
+        select(WatchListAccess.watchlist_id)
+        .where(
+            WatchListAccess.user_id == current_user.id,
+            WatchListAccess.role.in_(_WATCHING_ROLES),
+        )
+        .subquery()
+    )
+
+    # Find all open records in those lists for this tmdb_id
     open_records_query = (
         select(WatchRecord)
         .join(WatchItem, WatchRecord.watch_item_id == WatchItem.id)
         .where(
             WatchItem.tmdb_id == tmdb_id,
-            WatchRecord.user_id == current_user.id,
+            WatchItem.watchlist_id.in_(select(my_lists.c.watchlist_id)),
             WatchRecord.start_date.isnot(None),
             WatchRecord.end_date.is_(None),
         )
@@ -132,9 +156,19 @@ async def watch_history(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[WatchHistoryItem]:
-    """Return every title the current user has a WatchRecord for, de-duped by
-    tmdb_id.  Includes watch_count, last_watched, currently_watching, and the
-    best available rating."""
+    """Return every title the current user has a WatchRecord for (including
+    shared lists), de-duped by tmdb_id.  Includes watch_count, last_watched,
+    currently_watching, and the best available rating."""
+
+    # Watchlist IDs where the current user has a watching role
+    my_lists = (
+        select(WatchListAccess.watchlist_id)
+        .where(
+            WatchListAccess.user_id == current_user.id,
+            WatchListAccess.role.in_(_WATCHING_ROLES),
+        )
+        .subquery()
+    )
 
     # Completed-watch stats per tmdb_id
     completed = (
@@ -145,7 +179,7 @@ async def watch_history(
         )
         .join(WatchRecord, WatchRecord.watch_item_id == WatchItem.id)
         .where(
-            WatchRecord.user_id == current_user.id,
+            WatchItem.watchlist_id.in_(select(my_lists.c.watchlist_id)),
             WatchRecord.end_date.isnot(None),
         )
         .group_by(WatchItem.tmdb_id)
@@ -157,7 +191,7 @@ async def watch_history(
         select(WatchItem.tmdb_id)
         .join(WatchRecord, WatchRecord.watch_item_id == WatchItem.id)
         .where(
-            WatchRecord.user_id == current_user.id,
+            WatchItem.watchlist_id.in_(select(my_lists.c.watchlist_id)),
             WatchRecord.start_date.isnot(None),
             WatchRecord.end_date.is_(None),
         )
@@ -176,7 +210,7 @@ async def watch_history(
         .subquery()
     )
 
-    # All distinct tmdb_ids the user has ANY record for
+    # All distinct tmdb_ids with ANY record in the user's shared lists
     all_items = (
         select(
             WatchItem.tmdb_id,
@@ -187,7 +221,7 @@ async def watch_history(
             func.max(WatchItem.release_year).label("release_year"),
         )
         .join(WatchRecord, WatchRecord.watch_item_id == WatchItem.id)
-        .where(WatchRecord.user_id == current_user.id)
+        .where(WatchItem.watchlist_id.in_(select(my_lists.c.watchlist_id)))
         .group_by(WatchItem.tmdb_id, WatchItem.media_type)
         .subquery()
     )
