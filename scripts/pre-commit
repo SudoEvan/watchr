@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# ── Watchr pre-commit hook ──────────────────────────────────
+# Runs backend and frontend lint/type checks before committing.
+# Install: ./scripts/install-hooks.sh
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+FAILED=0
+
+# ── Check for staged backend changes ────────────────────────
+BACKEND_CHANGED=$(git diff --cached --name-only -- 'backend/' | head -1)
+if [ -n "$BACKEND_CHANGED" ]; then
+  echo -e "${YELLOW}▶ Backend: ruff check${NC}"
+  if ! (cd "$REPO_ROOT/backend" && poetry run ruff check --config ruff.toml .); then
+    FAILED=1
+  fi
+
+  echo -e "${YELLOW}▶ Backend: ruff format${NC}"
+  if ! (cd "$REPO_ROOT/backend" && poetry run ruff format --check --config ruff.toml .); then
+    echo -e "${RED}  Run 'cd backend && poetry run ruff format --config ruff.toml .' to fix${NC}"
+    FAILED=1
+  fi
+
+  echo -e "${YELLOW}▶ Backend: mypy${NC}"
+  if ! (cd "$REPO_ROOT/backend" && poetry run mypy app/ --config-file pyproject.toml); then
+    FAILED=1
+  fi
+else
+  echo -e "${GREEN}✓ Backend: no changes, skipping${NC}"
+fi
+
+# ── Check for staged frontend changes ───────────────────────
+FRONTEND_CHANGED=$(git diff --cached --name-only -- 'frontend/' | head -1)
+if [ -n "$FRONTEND_CHANGED" ]; then
+  echo -e "${YELLOW}▶ Frontend: eslint${NC}"
+  if ! (cd "$REPO_ROOT/frontend" && npx eslint src/); then
+    FAILED=1
+  fi
+
+  echo -e "${YELLOW}▶ Frontend: typecheck${NC}"
+  if ! (cd "$REPO_ROOT/frontend" && npx tsc --noEmit); then
+    FAILED=1
+  fi
+else
+  echo -e "${GREEN}✓ Frontend: no changes, skipping${NC}"
+fi
+
+# ── Result ──────────────────────────────────────────────────
+if [ "$FAILED" -ne 0 ]; then
+  echo -e "\n${RED}✘ Pre-commit checks failed. Fix errors above or use --no-verify to skip.${NC}"
+  exit 1
+fi
+
+echo -e "\n${GREEN}✔ All pre-commit checks passed.${NC}"
