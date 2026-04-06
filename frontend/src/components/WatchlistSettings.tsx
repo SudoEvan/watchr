@@ -297,6 +297,14 @@ export default function WatchlistSettings({ watchlist, onClose }: Props) {
                                 Viewer
                               </button>
                               <button
+                                onClick={() => shareWith.mutate({ userId: user.id, role: "watcher" })}
+                                disabled={shareWith.isPending}
+                                className="rounded-lg border px-2 py-1 text-xs font-medium transition-opacity hover:opacity-80"
+                                style={{ borderColor: "var(--accent-secondary)", color: "var(--accent-secondary)" }}
+                              >
+                                Watcher
+                              </button>
+                              <button
                                 onClick={() => shareWith.mutate({ userId: user.id, role: "manager" })}
                                 disabled={shareWith.isPending}
                                 className="rounded-lg px-2 py-1 text-xs font-medium text-white transition-opacity hover:opacity-80"

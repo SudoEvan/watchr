@@ -5,7 +5,7 @@ import { ArrowLeft, ChevronUp, ChevronDown, Pencil, Check, X, Trash2, Plus, Play
 import StarRating from "../components/StarRating";
 import ConfirmModal from "../components/ConfirmModal";
 import client from "../api/client";
-import type { WatchItem, WatchRecord } from "../types";
+import type { WatchList, WatchItem, WatchRecord } from "../types";
 
 type SortField = "end_date" | "start_date";
 type SortDir = "asc" | "desc";
@@ -22,6 +22,16 @@ export default function ItemDetail() {
   const [showAddRecord, setShowAddRecord] = useState(false);
   const [newStart, setNewStart] = useState("");
   const [newEnd, setNewEnd] = useState("");
+
+  const { data: watchlist } = useQuery<WatchList>({
+    queryKey: ["watchlist", watchlistId],
+    queryFn: async () => (await client.get(`/watchlists/${watchlistId}`)).data,
+  });
+
+  const canWatch =
+    watchlist?.role === "owner" ||
+    watchlist?.role === "manager" ||
+    watchlist?.role === "watcher";
 
   const { data: items = [] } = useQuery<WatchItem[]>({
     queryKey: ["watchlist-items-all", watchlistId],
@@ -242,7 +252,7 @@ export default function ItemDetail() {
           </div>
 
           {/* Start / Stop watching */}
-          <div className="mt-4">
+          {canWatch && <div className="mt-4">
             {item.currently_watching ? (
               <button
                 onClick={() => stopWatching.mutate()}
@@ -264,7 +274,7 @@ export default function ItemDetail() {
                 Start Watching
               </button>
             )}
-          </div>
+          </div>}
 
           {item.overview && (
             <p className="mt-4 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
@@ -280,14 +290,16 @@ export default function ItemDetail() {
           <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
             Watch History
           </h2>
-          <button
-            onClick={() => setShowAddRecord(!showAddRecord)}
-            className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80"
-            style={{ borderColor: "var(--border)", color: "var(--accent-primary)" }}
-          >
-            <Plus size={12} />
-            Add Record
-          </button>
+          {canWatch && (
+            <button
+              onClick={() => setShowAddRecord(!showAddRecord)}
+              className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80"
+              style={{ borderColor: "var(--border)", color: "var(--accent-primary)" }}
+            >
+              <Plus size={12} />
+              Add Record
+            </button>
+          )}
         </div>
         {showAddRecord && (
           <div
@@ -454,7 +466,7 @@ export default function ItemDetail() {
                               <X size={14} />
                             </button>
                           </div>
-                        ) : (
+                        ) : canWatch ? (
                           <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                             <button
                               onClick={() => startEditing(record)}
@@ -471,7 +483,7 @@ export default function ItemDetail() {
                               <Trash2 size={14} />
                             </button>
                           </div>
-                        )}
+                        ) : null}
                       </td>
                     </tr>
                   );

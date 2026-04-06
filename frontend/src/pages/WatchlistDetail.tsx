@@ -14,7 +14,8 @@ const DESC_LIMIT = 120;
 function ListViewItem({
   item,
   watchlistId,
-  canEdit,
+  canManage,
+  canWatch,
   showWatched,
   isRewatch,
   onMarkWatched,
@@ -25,7 +26,8 @@ function ListViewItem({
 }: {
   item: WatchItem;
   watchlistId: string;
-  canEdit: boolean;
+  canManage: boolean;
+  canWatch: boolean;
   showWatched: boolean;
   isRewatch: boolean;
   onMarkWatched: () => void;
@@ -88,7 +90,7 @@ function ListViewItem({
             </div>
           </div>
           <div className="flex flex-shrink-0 items-center gap-2">
-            {(!showWatched || isRewatch) && canEdit && (
+            {(!showWatched || isRewatch) && canWatch && (
               <>
                 {item.media_type === "movie" ? (
                   <button
@@ -123,7 +125,7 @@ function ListViewItem({
                 )}
               </>
             )}
-            {canEdit && (
+            {canManage && (
               <button
                 onClick={onRemove}
                 className="rounded p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
@@ -353,6 +355,15 @@ export default function WatchlistDetail() {
                 </button>
               </>
             )}
+            {watchlist?.role === "watcher" && (
+              <button
+                onClick={() => setShowSettings(true)}
+                className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-opacity hover:opacity-80"
+                style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+              >
+                <Settings size={14} />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -450,14 +461,15 @@ export default function WatchlistDetail() {
           {viewMode === "grid" ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {items.map((item) => {
-                const canEdit = watchlist?.role === "owner" || watchlist?.role === "manager";
+                const canManage = watchlist?.role === "owner" || watchlist?.role === "manager";
+                const canWatch = canManage || watchlist?.role === "watcher";
                 return (
                   <div
                     key={item.id}
                     className="group relative overflow-hidden rounded-xl border transition-all hover:shadow-lg"
                     style={{ backgroundColor: "var(--bg-secondary)", borderColor: "var(--border)" }}
                   >
-                    {canEdit && (
+                    {canManage && (
                       <button
                         onClick={() => setConfirmRemoveId(item.id)}
                         className="absolute right-2 top-2 z-10 rounded-full p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
@@ -506,7 +518,7 @@ export default function WatchlistDetail() {
                           <StarRating value={item.rating} readonly size={14} />
                         </div>
                       )}
-                      {(!showWatched || isRewatch) && canEdit && (
+                      {(!showWatched || isRewatch) && canWatch && (
                         <div className="mt-2">
                           {item.media_type === "movie" ? (
                             <button
@@ -552,13 +564,15 @@ export default function WatchlistDetail() {
             /* List view */
             <div className="flex flex-col gap-2">
               {items.map((item) => {
-                const canEdit = watchlist?.role === "owner" || watchlist?.role === "manager";
+                const canManage = watchlist?.role === "owner" || watchlist?.role === "manager";
+                const canWatch = canManage || watchlist?.role === "watcher";
                 return (
                   <ListViewItem
                     key={item.id}
                     item={item}
                     watchlistId={id!}
-                    canEdit={canEdit}
+                    canManage={canManage}
+                    canWatch={canWatch}
                     showWatched={showWatched}
                     isRewatch={isRewatch}
                     onMarkWatched={() => markWatched.mutate(item.id)}

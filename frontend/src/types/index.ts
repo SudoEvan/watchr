@@ -16,7 +16,7 @@ export interface WatchList {
   is_rewatch: boolean;
   created_at: string;
   updated_at: string;
-  role: "owner" | "manager" | "viewer" | null;
+  role: "owner" | "manager" | "watcher" | "viewer" | null;
   is_favorite: boolean;
   item_count: number;
 }
@@ -55,7 +55,7 @@ export interface WatchListAccess {
   id: string;
   watchlist_id: string;
   user_id: string;
-  role: "owner" | "manager" | "viewer";
+  role: "owner" | "manager" | "watcher" | "viewer";
   user_display_name: string | null;
   created_at: string;
 }
